@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-roundtable"
+version = "0.1.0"
+description = "A persona-agnostic multi-agent deliberation harness: divergent idea generation gated by an incorruptible reality test."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Brett Kerigan" }]
+keywords = ["multi-agent", "llm", "deliberation", "hypothesis-testing", "fdr"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/REPLACE_ME/agent-roundtable"
+
+[tool.setuptools]
+py-modules = ["octagon", "client", "harvest", "scout", "forge", "alpha_ledger", "demo"]
+packages = ["personas", "adapters"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

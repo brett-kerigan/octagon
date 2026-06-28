@@ -1,0 +1,7 @@
+# The engine, adapters, demo, and full test suite are stdlib-only: no install required.
+#
+# Optional, only if you run the live local client (demo.py --local / --hybrid):
+#   an Ollama service (https://ollama.com), talked to over stdlib urllib (no Python dep).
+#
+# Dev/test:
+pytest>=7
