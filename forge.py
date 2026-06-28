@@ -95,6 +95,8 @@ def tail_concentration(xs, ys, k=10):
 def gate_one(score_fn, eras, recent_era, p_recent=P_RECENT):
     """Score a hypothesis across discovery eras (the vault is NOT passed here).
     Returns (per_era, consistent, recent_ok, older_strong, recent_p)."""
+    if recent_era not in eras:
+        raise ValueError(f"recent_era {recent_era!r} is not among the eras {sorted(eras)}")
     per = {}
     for era, slice_ in eras.items():
         eff, p, n = score_fn(slice_)

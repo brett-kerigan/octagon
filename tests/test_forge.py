@@ -71,6 +71,14 @@ def test_gate_batch_confirms_a_real_signal():
     assert verdict == "REAL"
 
 
+def test_gate_one_rejects_unknown_recent_era():
+    import pytest
+    from forge import gate_one
+    eras = {"2010-14": [(0.0, 0.0)] * 10}
+    with pytest.raises(ValueError):
+        gate_one(_score, eras, recent_era="2099")
+
+
 def test_gate_batch_marks_decayed_signal():
     rng = random.Random(11)
     recent = "2020-24"

@@ -11,8 +11,31 @@ outside world, and nothing calls them until you deliberately choose to run live.
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import subprocess
+
+# Vars whose names look like a credential for some OTHER service. We strip these from the
+# child process env so shelling out to one CLI never hands it unrelated provider secrets.
+_SECRETISH = re.compile(r"(API[_-]?KEY|SECRET|TOKEN|PASSWORD|PASSWD|ACCESS[_-]?KEY)", re.I)
+# ...except the ones the claude CLI itself may legitimately need.
+_ALLOW_PREFIXES = ("ANTHROPIC", "CLAUDE")
+
+
+def _scoped_env():
+    """A copy of the environment with unrelated-provider secrets removed.
+
+    PATH, HOME, SystemRoot and everything non-secret pass through unchanged, so the child
+    still runs normally; only vars that look like another service's credential (and are not
+    Anthropic/Claude's own) are dropped.
+    """
+    env = {}
+    for k, v in os.environ.items():
+        if _SECRETISH.search(k) and not k.upper().startswith(_ALLOW_PREFIXES):
+            continue
+        env[k] = v
+    return env
 
 
 def stub_client(reply="(stub reply)"):
@@ -49,12 +72,18 @@ def claude_cli_client(prompt: str, *, model: str = "opus", timeout_s: int = 600)
         encoding="utf-8",
         errors="replace",
         timeout=timeout_s,
+        env=_scoped_env(),                 # don't hand the child unrelated provider secrets
     )
     if proc.returncode != 0:
         raise RuntimeError(
             f"claude CLI exited {proc.returncode}: {proc.stderr.strip()[:300]}"
         )
-    envelope = json.loads(proc.stdout)
+    try:
+        envelope = json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError(
+            f"claude CLI returned non-JSON output: {proc.stdout.strip()[:200]!r}"
+        ) from exc
     if envelope.get("is_error"):
         raise RuntimeError(f"claude CLI error: {envelope.get('subtype')}")
     return envelope.get("result", "")
