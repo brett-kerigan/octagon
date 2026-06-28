@@ -1,4 +1,4 @@
-# agent-roundtable
+# octagon
 
 A persona-agnostic harness for **adversarial idea generation gated by an incorruptible
 reality test.** A pure turn-scheduler (the **octagon**) seats one to four **personas** that
