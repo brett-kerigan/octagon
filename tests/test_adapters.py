@@ -10,8 +10,8 @@ from adapters.reslice import run_campaign
 # ---- store -----------------------------------------------------------------------
 def test_store_dedups_paraphrases_and_counts():
     with IdeaStore(":memory:", threshold=0.5) as s:
-        s.ingest_one("d", "1. fade horses on a hot streak | from: scientist")
-        r = s.ingest_one("d", "2. fade horses that are on a hot streak | from: dreamer")
+        s.ingest_one("d", "1. fade entries on a hot streak | from: scientist")
+        r = s.ingest_one("d", "2. fade entries that are on a hot streak | from: dreamer")
         assert r["new"] is False          # near-paraphrase collapses onto the first
         rows = s.report("d")
         assert len(rows) == 1
