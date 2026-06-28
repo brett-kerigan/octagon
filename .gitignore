@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Local-only working notes (never published)
+*.local.md
+
 # Run artifacts the harness writes
 last_run.md
 last_harvest.md
