@@ -11,7 +11,9 @@ The harness was run against a real, hard, efficient-market problem: handicapping
 a parimutuel betting market (horse racing), where the "crowd" sets prices and an "edge" is an
 outcome whose true probability differs from its market price by more than the cost of
 trading. This is a good stress test precisely because the easy edges are already gone and the
-honest default answer is "there is nothing left here."
+honest default answer is "there is nothing left here." The campaign was a research
+exercise run entirely against historical data; nothing in it describes, involves, or
+advises live wagering.
 
 Two cooperating agents ran the loop: one generated divergent hypotheses through the
 roundtable; a separate one owned the reality gate and tested each hypothesis against a large
