@@ -55,6 +55,13 @@ def test_claude_cli_non_json_raises_clear_error(monkeypatch):
     assert "non-JSON" in str(exc.value)
 
 
+def test_claude_cli_null_result_returns_empty_string(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/claude")
+    monkeypatch.setattr(client_mod.subprocess, "run",
+                        lambda cmd, **kw: _fake_proc(json.dumps({"result": None})))
+    assert client_mod.claude_cli_client("prompt") == ""
+
+
 def test_claude_cli_error_envelope_raises(monkeypatch):
     monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/claude")
     monkeypatch.setattr(client_mod.subprocess, "run",

@@ -78,7 +78,7 @@ def _parse_claude_envelope(stdout):
         ) from exc
     if envelope.get("is_error"):
         raise RuntimeError(f"claude CLI error: {envelope.get('subtype')}")
-    return envelope.get("result", "")
+    return envelope.get("result") or ""
 
 
 def stub_client(reply="(stub reply)"):
