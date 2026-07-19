@@ -1,5 +1,7 @@
 # octagon
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/kerokerodayo/octagon)
+
 A persona-agnostic harness for **adversarial idea generation gated by an incorruptible
 reality test.** A pure turn-scheduler (the **octagon**) seats one to four **personas** that
 argue past each other to surface bold, testable hypotheses. A separate gate then tries its
@@ -7,6 +9,8 @@ hardest to prove each hypothesis is a fluke. Nothing is believed until it surviv
 
 Pure standard library. The engine has no third-party dependencies, and the full test suite
 runs offline.
+
+![The gate demo: planted signals judged, all 20 noise nulls rejected](docs/assets/gate-demo.gif)
 
 ## The problem
 
@@ -79,15 +83,51 @@ test suite asserts it.
 
 ## How to run
 
+Zero dependencies — clone and run:
+
 ```bash
 python demo.py            # offline: a full octagon run with deterministic stub personas
 python forge.py --demo    # the synthetic gate proof shown above (no data needed)
 python -m adapters.reslice    # a pre-registered re-slice campaign against a synthetic gate
-python -m pytest -q       # 44 offline tests
+python -m pytest -q       # the full offline test suite
 ```
 
-Going live is one swap: inject a real client (`client.py` ships a local-Ollama client and a
-`claude` CLI client) and a real `gate_fn`. The orchestration does not change.
+Or install the `octagon` command (`pip install -e .`), or run it with nothing installed:
+
+```bash
+uvx --from git+https://github.com/kerokerodayo/octagon octagon gate --demo
+```
+
+`octagon doctor` tells you which model backends this machine can run live.
+
+### Use it as a skill (zero setup)
+
+Open this repo in Claude Code (or any agent that reads `SKILL.md`) and type `/octagon`:
+the model you are already running becomes the table — one isolated subagent per seat —
+and the deterministic gate stays in Python. No API keys, no configuration. To make it
+available everywhere, copy `.claude/skills/octagon/` into `~/.claude/skills/`.
+
+### Going live from the command line
+
+Any headless agent CLI you already subscribe to can power a seat — no API keys, the
+CLIs use their own logins:
+
+| backend                | powered by                     | flag                          |
+|------------------------|--------------------------------|-------------------------------|
+| your current agent     | the `/octagon` skill           | (none — zero setup)           |
+| Claude                 | `claude` CLI                   | `--room=claude`               |
+| Codex                  | `codex` CLI                    | `--room=codex`                |
+| Gemini                 | `gemini` CLI                   | `--room=gemini`               |
+| local models           | Ollama                         | `--room=ollama --model=...`   |
+| anything OpenAI-compat | OpenRouter, LM Studio, vLLM, … | `--room=openai` + env vars    |
+
+```bash
+python demo.py --room=ollama --harvest=claude      # cheap divergence, strong synthesis
+python demo.py --room=claude --dye=fool=codex      # dye one seat a different family
+```
+
+`--dye seat=backend` exists because of the shared-basin warning below: one seat from a
+different model family is the cheap antidote.
 
 ## Honest limitations
 
