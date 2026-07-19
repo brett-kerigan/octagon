@@ -27,7 +27,11 @@ def run_doctor():
 
     checks = {}
     for name in ("claude", "codex", "gemini"):
-        path = shutil.which(name)
+        try:
+            path = shutil.which(name)
+        except Exception as exc:  # noqa: BLE001
+            checks[name] = {"available": False, "detail": f"probe failed: {exc}"}
+            continue
         checks[name] = {
             "available": bool(path),
             "detail": path or "not on PATH",

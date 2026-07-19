@@ -26,6 +26,19 @@ def test_doctor_never_raises_and_covers_all_backends(monkeypatch):
     assert all(c["available"] is False for c in checks.values())
 
 
+def test_doctor_survives_a_raising_which(monkeypatch):
+    def bad_which(name):
+        raise OSError("unreadable PATH entry")
+    monkeypatch.setattr(cli.shutil, "which", bad_which)
+    def boom(*a, **kw):
+        raise OSError("refused")
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
+    monkeypatch.delenv("OCTAGON_BASE_URL", raising=False)
+    checks = cli.run_doctor()
+    assert checks["claude"]["available"] is False
+    assert "probe failed" in checks["claude"]["detail"]
+
+
 def test_doctor_reports_available_backends(monkeypatch):
     monkeypatch.setattr(cli.shutil, "which", lambda name: f"/fake/{name}")
     monkeypatch.setenv("OCTAGON_BASE_URL", "http://localhost:1234/v1")
