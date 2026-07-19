@@ -112,6 +112,86 @@ def claude_cli_client(prompt, *, model: str = "opus", timeout_s: int = 600) -> s
     )
 
 
+def _parse_codex_jsonl(stdout):
+    """Pull the final agent message out of `codex exec --json` JSONL events.
+
+    Tolerates the two shapes seen across codex versions: a wrapped
+    {"type": "item.completed", "item": {"type": "agent_message", "text": ...}}
+    and a flat {"type": "agent_message", "text": ...}. Last one wins.
+    """
+    text = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            evt = json.loads(line)
+        except ValueError:
+            continue
+        item = evt.get("item") or {}
+        if item.get("type") == "agent_message" and item.get("text"):
+            text = item["text"]
+        elif evt.get("type") == "agent_message" and evt.get("text"):
+            text = evt["text"]
+    if text is None:
+        raise RuntimeError(
+            f"codex CLI output contained no agent_message: {stdout.strip()[:200]!r}"
+        )
+    return text
+
+
+def codex_cli_client(prompt, *, model=None, timeout_s: int = 600) -> str:
+    """A live client for OpenAI's `codex` CLI in headless mode (`codex exec`).
+
+    Runs on the user's Codex subscription login; no API key handled here. The prompt
+    is fed via stdin (`-`) for the same Windows argv-truncation reason as claude's.
+
+    Verified live against codex-cli 0.142.3: `codex exec --json -` reads the prompt
+    from stdin, `-m/--model` selects the model, and the real JSONL stream matches the
+    wrapped {"type": "item.completed", "item": {"type": "agent_message", ...}} shape
+    this parser expects (preceded by thread.started/turn.started and followed by
+    turn.completed events, which this parser correctly ignores).
+    """
+    argv = ["exec", "--json"]
+    if model:
+        argv += ["-m", model]
+    argv.append("-")
+    return _run_agent_cli(
+        "codex", argv, prompt,
+        timeout_s=timeout_s,
+        allow_prefixes=("OPENAI", "CODEX"),
+        parse=_parse_codex_jsonl,
+    )
+
+
+def _parse_gemini_text(stdout):
+    out = stdout.strip()
+    if not out:
+        raise RuntimeError("gemini CLI returned empty output")
+    return out
+
+
+def gemini_cli_client(prompt, *, model=None, timeout_s: int = 600) -> str:
+    """A live client for Google's `gemini` CLI in non-interactive mode.
+
+    Runs on the user's Google account login; no API key handled here. The prompt is
+    piped via stdin (the CLI treats piped stdin as the prompt and prints the reply as
+    plain text). Adapter note: gemini's flags drift between versions; this function is
+    the isolation layer — adjust argv here if your installed version differs. Not
+    verified live (gemini CLI is not installed on the machine this was built on); this
+    is mock-tested only.
+    """
+    argv = []
+    if model:
+        argv += ["-m", model]
+    return _run_agent_cli(
+        "gemini", argv, prompt,
+        timeout_s=timeout_s,
+        allow_prefixes=("GOOGLE", "GEMINI"),
+        parse=_parse_gemini_text,
+    )
+
+
 def ollama_client(model="qwen2.5:7b", *, host="http://localhost:11434", timeout_s=300):
     """LOCAL client via Ollama. Returns a `client(prompt) -> str` callable bound to one
     local model. Good for throw-away dev (iterate the harness for free) and for a

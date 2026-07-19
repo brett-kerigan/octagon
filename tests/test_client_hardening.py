@@ -73,3 +73,67 @@ def test_scoped_env_allow_prefixes_parameter(monkeypatch):
     assert env.get("OPENAI_API_KEY") == "openai-cred"
     assert "ANTHROPIC_API_KEY" not in env
     assert "GOOGLE_API_KEY" not in env
+
+
+def _codex_jsonl(text):
+    return "\n".join([
+        json.dumps({"type": "session.created", "session_id": "s1"}),
+        json.dumps({"type": "item.completed",
+                    "item": {"type": "agent_message", "text": text}}),
+    ])
+
+
+def test_codex_cli_parses_agent_message(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/codex")
+    monkeypatch.setattr(client_mod.subprocess, "run",
+                        lambda cmd, **kw: _fake_proc(_codex_jsonl("pong")))
+    assert client_mod.codex_cli_client("ping") == "pong"
+
+
+def test_codex_cli_env_keeps_only_openai_creds(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/codex")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "leak-me")
+    monkeypatch.setenv("OPENAI_API_KEY", "keep-me")
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["env"] = kwargs.get("env")
+        return _fake_proc(_codex_jsonl("ok"))
+
+    monkeypatch.setattr(client_mod.subprocess, "run", fake_run)
+    client_mod.codex_cli_client("prompt")
+    assert captured["env"].get("OPENAI_API_KEY") == "keep-me"
+    assert "ANTHROPIC_API_KEY" not in captured["env"]
+
+
+def test_codex_cli_no_agent_message_raises(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/codex")
+    monkeypatch.setattr(client_mod.subprocess, "run",
+                        lambda cmd, **kw: _fake_proc("garbage\nnot json"))
+    with pytest.raises(RuntimeError) as exc:
+        client_mod.codex_cli_client("prompt")
+    assert "agent_message" in str(exc.value)
+
+
+def test_gemini_cli_returns_stdout(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/gemini")
+    monkeypatch.setattr(client_mod.subprocess, "run",
+                        lambda cmd, **kw: _fake_proc("a reply\n"))
+    assert client_mod.gemini_cli_client("ping") == "a reply"
+
+
+def test_gemini_cli_empty_output_raises(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: "/fake/gemini")
+    monkeypatch.setattr(client_mod.subprocess, "run",
+                        lambda cmd, **kw: _fake_proc("   \n"))
+    with pytest.raises(RuntimeError) as exc:
+        client_mod.gemini_cli_client("prompt")
+    assert "empty" in str(exc.value)
+
+
+def test_missing_binary_raises_for_each_vendor(monkeypatch):
+    monkeypatch.setattr(client_mod.shutil, "which", lambda name: None)
+    for fn in (client_mod.codex_cli_client, client_mod.gemini_cli_client):
+        with pytest.raises(RuntimeError) as exc:
+            fn("prompt")
+        assert "not on PATH" in str(exc.value)
