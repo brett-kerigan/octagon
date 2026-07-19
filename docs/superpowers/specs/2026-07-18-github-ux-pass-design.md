@@ -22,7 +22,7 @@ browser. Explicitly *not* in scope: installer-style packaging for non-technical 
 6. **Offline tests for all new surface** — the "entire suite runs offline" claim stays true.
 
 Out of scope: PyPI publishing, Docker/Compose, web UI, package restructure, per-seat GUI,
-and installer-style packaging (for a different project).
+and installer-style packaging (which belongs to a different, non-developer-facing project).
 
 ## 1. Agent Skill
 
