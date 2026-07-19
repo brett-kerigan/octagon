@@ -93,3 +93,12 @@ def test_demo_dispatch_offline(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     assert cli.main(["demo"]) == 0
     assert (tmp_path / "last_run.md").exists()
+
+
+def test_demo_help_does_not_run(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["demo", "--help"])
+    assert exc.value.code == 0
+    assert "--room" in capsys.readouterr().out
+    assert not (tmp_path / "last_run.md").exists()

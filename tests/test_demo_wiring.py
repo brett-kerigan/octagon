@@ -74,3 +74,22 @@ def test_cli_main_offline_end_to_end(tmp_path, monkeypatch):
     assert result["status"] == "completed"
     assert (tmp_path / "last_run.md").exists()
     assert (tmp_path / "last_harvest.md").exists()
+
+
+def test_help_prints_usage_and_exits_zero(capsys):
+    with pytest.raises(SystemExit) as exc:
+        demo.parse_args(["--help"])
+    assert exc.value.code == 0
+    assert "--room" in capsys.readouterr().out
+
+
+def test_space_separated_flag_rejected():
+    with pytest.raises(SystemExit) as exc:
+        demo.parse_args(["--room", "claude"])
+    assert "--room" in str(exc.value)
+
+
+def test_non_integer_rounds_rejected():
+    with pytest.raises(SystemExit) as exc:
+        demo.parse_args(["--rounds=abc"])
+    assert "abc" in str(exc.value)

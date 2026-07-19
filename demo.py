@@ -105,11 +105,21 @@ def parse_args(argv):
     Legacy aliases: --live (claude/claude), --hybrid (ollama/claude),
     --local (ollama/ollama).
     """
+    if "-h" in argv or "--help" in argv:
+        print("usage: python demo.py [flags]  (or: octagon demo [flags])")
+        print()
+        print(parse_args.__doc__)
+        raise SystemExit(0)
+
     def val(prefix, default=None):
         return next((a.split("=", 1)[1] for a in argv if a.startswith(prefix)), default)
 
     model = val("--model=")
-    rounds = int(val("--rounds=", "2"))
+    rounds_raw = val("--rounds=", "2")
+    try:
+        rounds = int(rounds_raw)
+    except ValueError:
+        raise SystemExit(f"--rounds needs an integer; got {rounds_raw!r}")
     room_name = val("--room=")
     harvest_name = val("--harvest=")
     if room_name is None and harvest_name is None:
@@ -132,6 +142,16 @@ def parse_args(argv):
                     f"dreamer|fool|scientist|insider; got {a.split('=', 1)[1]!r}"
                 )
             dye[seat] = _backend(backend, model)
+
+    recognized_prefixes = ("--room=", "--harvest=", "--dye=", "--rounds=", "--model=")
+    legacy_flags = ("--live", "--hybrid", "--local")
+    for a in argv:
+        if a in legacy_flags or a.startswith(recognized_prefixes):
+            continue
+        raise SystemExit(
+            f"unrecognized argument {a!r}; flags use --flag=value form "
+            f"(e.g. --room=claude, --dye=fool=codex)"
+        )
 
     return _backend(room_name, model), _backend(harvest_name, model), dye, rounds
 
