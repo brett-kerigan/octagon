@@ -23,19 +23,62 @@ _SECRETISH = re.compile(r"(API[_-]?KEY|SECRET|TOKEN|PASSWORD|PASSWD|ACCESS[_-]?K
 _ALLOW_PREFIXES = ("ANTHROPIC", "CLAUDE")
 
 
-def _scoped_env():
+def _scoped_env(allow_prefixes=_ALLOW_PREFIXES):
     """A copy of the environment with unrelated-provider secrets removed.
 
     PATH, HOME, SystemRoot and everything non-secret pass through unchanged, so the child
-    still runs normally; only vars that look like another service's credential (and are not
-    Anthropic/Claude's own) are dropped.
+    still runs normally; only vars that look like another service's credential (and do not
+    start with one of `allow_prefixes`, the vendor's own) are dropped.
     """
     env = {}
     for k, v in os.environ.items():
-        if _SECRETISH.search(k) and not k.upper().startswith(_ALLOW_PREFIXES):
+        if _SECRETISH.search(k) and not k.upper().startswith(allow_prefixes):
             continue
         env[k] = v
     return env
+
+
+def _run_agent_cli(binary_name, argv_rest, prompt, *, timeout_s, allow_prefixes, parse):
+    """Shared runner for headless agent CLIs (claude/codex/gemini).
+
+    One place owns the hardening: PATH check, prompt over stdin (Windows CLI shims
+    truncate multi-line argv), explicit timeout, per-vendor secret scoping, UTF-8
+    decode with replacement, and clear errors. `parse(stdout) -> str` is the only
+    per-CLI part.
+    """
+    binary = shutil.which(binary_name)
+    if not binary:
+        raise RuntimeError(
+            f"`{binary_name}` CLI not on PATH; install it and authenticate, "
+            f"or inject a different client."
+        )
+    proc = subprocess.run(
+        [binary] + argv_rest,
+        input=prompt,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout_s,
+        env=_scoped_env(allow_prefixes),   # the child sees only its own vendor's secrets
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"{binary_name} CLI exited {proc.returncode}: {proc.stderr.strip()[:300]}"
+        )
+    return parse(proc.stdout)
+
+
+def _parse_claude_envelope(stdout):
+    try:
+        envelope = json.loads(stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError(
+            f"claude CLI returned non-JSON output: {stdout.strip()[:200]!r}"
+        ) from exc
+    if envelope.get("is_error"):
+        raise RuntimeError(f"claude CLI error: {envelope.get('subtype')}")
+    return envelope.get("result", "")
 
 
 def stub_client(reply="(stub reply)"):
@@ -52,41 +95,21 @@ def echo_client(prompt: str) -> str:
     return f"(echo: prompt was {len(prompt)} chars)"
 
 
-def claude_cli_client(prompt: str, *, model: str = "opus", timeout_s: int = 600) -> str:
+def claude_cli_client(prompt, *, model: str = "opus", timeout_s: int = 600) -> str:
     """A live client that shells out to the local `claude` CLI in print mode (`claude -p`).
 
     The prompt is fed via stdin (on Windows `claude` is a .cmd shim that truncates a
     multi-line argv). Output is parsed from the CLI's JSON envelope. A four-seat round is
     four of these calls. Not invoked until you choose to run the table live.
     """
-    claude = shutil.which("claude")
-    if not claude:
-        raise RuntimeError(
-            "`claude` CLI not on PATH; install it and authenticate, or inject a different client."
-        )
-    proc = subprocess.run(
-        [claude, "-p", "--output-format", "json", "--model", model],
-        input=prompt,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=timeout_s,
-        env=_scoped_env(),                 # don't hand the child unrelated provider secrets
+    return _run_agent_cli(
+        "claude",
+        ["-p", "--output-format", "json", "--model", model],
+        prompt,
+        timeout_s=timeout_s,
+        allow_prefixes=("ANTHROPIC", "CLAUDE"),
+        parse=_parse_claude_envelope,
     )
-    if proc.returncode != 0:
-        raise RuntimeError(
-            f"claude CLI exited {proc.returncode}: {proc.stderr.strip()[:300]}"
-        )
-    try:
-        envelope = json.loads(proc.stdout)
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError(
-            f"claude CLI returned non-JSON output: {proc.stdout.strip()[:200]!r}"
-        ) from exc
-    if envelope.get("is_error"):
-        raise RuntimeError(f"claude CLI error: {envelope.get('subtype')}")
-    return envelope.get("result", "")
 
 
 def ollama_client(model="qwen2.5:7b", *, host="http://localhost:11434", timeout_s=300):
