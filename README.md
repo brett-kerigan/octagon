@@ -1,5 +1,6 @@
 # octagon
 
+![tests](https://github.com/brett-kerigan/octagon/actions/workflows/ci.yml/badge.svg)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/brett-kerigan/octagon)
 
 A persona-agnostic harness for **adversarial idea generation gated by an incorruptible
