@@ -24,8 +24,11 @@ dev = ["pytest>=7"]
 [project.urls]
 Homepage = "https://github.com/kerokerodayo/octagon"
 
+[project.scripts]
+octagon = "cli:main"
+
 [tool.setuptools]
-py-modules = ["octagon", "client", "harvest", "scout", "forge", "alpha_ledger", "demo"]
+py-modules = ["octagon", "client", "harvest", "scout", "forge", "alpha_ledger", "demo", "cli"]
 packages = ["personas", "adapters"]
 
 [tool.pytest.ini_options]

@@ -192,6 +192,21 @@ ROSTER = {
 }
 
 
+# Canonical system-prompt text by roster name, for tooling that needs the words
+# themselves (e.g. `octagon prompt <name>`, which the agent skill shells out to so
+# prompts are never duplicated outside this file). The two domain-cast roles keep
+# their literal {who} slot; fill it when you cast them.
+SYSTEMS = {
+    "dreamer": DREAMER_SYSTEM,
+    "fool": FOOL_SYSTEM,
+    "scientist": SCIENTIST_SYSTEM,
+    "gambler": GAMBLER_SYSTEM,
+    "skeptic": SKEPTIC_SYSTEM,
+    "practitioner": PRACTITIONER_SYSTEM,
+    "insider": INSIDER_SYSTEM,
+}
+
+
 def draft(names, client, *, topic=None, domain=None):
     """Seat a lineup of 1 to 4 personas by name from the ROSTER."""
     if not 1 <= len(names) <= 4:
