@@ -54,6 +54,12 @@ def test_unknown_backend_exits_with_message():
     assert "chatgpt" in str(exc.value)
 
 
+def test_dye_unknown_seat_exits_with_message():
+    with pytest.raises(SystemExit) as exc:
+        demo.parse_args(["--dye=jester=claude"])
+    assert "jester" in str(exc.value)
+
+
 def test_example_room_dye_overrides_one_seat():
     a, b = client_mod.stub_client("A"), client_mod.stub_client("B")
     seats = demo.example_room(a, dye={"fool": b})
