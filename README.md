@@ -45,7 +45,9 @@ PROVOKE  ->  DIRECTION  ->  OPERATIONALIZE  ->  DECIDE  ->  [ REALITY is the jud
   that matters is diversity of *function*, not four flavors of "have an idea."
 - **The gate** (`forge.py`) is the half that makes the rest safe. It does not find edges;
   it refuses to be fooled by them. Three protections, learned the hard way:
-  1. **per-era replication** with a hard requirement on the most recent era (edges decay);
+  1. **per-era coherence**: the effect must keep one sign across every era it appears in,
+     with a hard significance requirement on the **most recent era** (edges decay; a signal
+     that flips direction era to era, or is dead today, never passes);
   2. **Benjamini-Hochberg FDR** across the whole batch (testing 100 ideas and keeping the
      "best" is how you confirm dice at industrial scale);
   3. a **sacred vault**: a final holdout that survivors get exactly one shot at.
@@ -89,7 +91,7 @@ Zero dependencies — clone and run:
 python demo.py            # offline: a full octagon run with deterministic stub personas
 python forge.py --demo    # the synthetic gate proof shown above (no data needed)
 python -m adapters.reslice    # a pre-registered re-slice campaign against a synthetic gate
-python -m pytest -q       # the full offline test suite
+python -m pytest -q       # the full offline test suite (the one dev dep: pip install pytest)
 ```
 
 Or install the `octagon` command (`pip install -e .`), or run it with nothing installed:
@@ -126,7 +128,7 @@ python demo.py --room=ollama --harvest=claude      # cheap divergence, strong sy
 python demo.py --room=claude --dye=fool=codex      # dye one seat a different family
 ```
 
-`--dye seat=backend` exists because of the shared-basin warning below: one seat from a
+`--dye=seat=backend` exists because of the shared-basin warning below: one seat from a
 different model family is the cheap antidote.
 
 ## Honest limitations
