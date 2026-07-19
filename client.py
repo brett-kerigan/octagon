@@ -221,3 +221,54 @@ def ollama_client(model="qwen2.5:7b", *, host="http://localhost:11434", timeout_
         return data.get("response", "")
 
     return _c
+
+
+def openai_compat_client(model=None, *, base_url=None, timeout_s=300):
+    """Client factory for ANY OpenAI-compatible endpoint (OpenRouter, LM Studio, vLLM,
+    llama.cpp server, ...). Returns a `client(prompt) -> str` callable.
+
+    Configuration comes from arguments or environment:
+      base URL : `base_url=` or OCTAGON_BASE_URL   (e.g. http://localhost:1234/v1)
+      model    : `model=`    or OCTAGON_MODEL
+      key      : OCTAGON_API_KEY, optional — omitted entirely for keyless local servers,
+                 and never accepted as a function argument.
+    Talks to {base}/chat/completions over stdlib urllib (no extra deps).
+    """
+    import urllib.request
+
+    base = (base_url or os.environ.get("OCTAGON_BASE_URL", "")).rstrip("/")
+    if not base:
+        raise RuntimeError(
+            "openai_compat_client needs a base URL: pass base_url= or set OCTAGON_BASE_URL "
+            "(e.g. https://openrouter.ai/api/v1 or http://localhost:1234/v1)."
+        )
+    mdl = model or os.environ.get("OCTAGON_MODEL", "")
+    if not mdl:
+        raise RuntimeError(
+            "openai_compat_client needs a model: pass model= or set OCTAGON_MODEL."
+        )
+
+    def _c(prompt: str) -> str:
+        payload = json.dumps(
+            {"model": mdl, "messages": [{"role": "user", "content": prompt}]}
+        ).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        key = os.environ.get("OCTAGON_API_KEY", "")
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
+        req = urllib.request.Request(f"{base}/chat/completions", data=payload, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(
+                f"openai-compatible call failed (base_url={base}, model={mdl}): {exc}"
+            ) from exc
+        try:
+            return data["choices"][0]["message"]["content"] or ""
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(
+                f"openai-compatible endpoint returned unexpected shape: {str(data)[:200]}"
+            ) from exc
+
+    return _c

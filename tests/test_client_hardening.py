@@ -137,3 +137,66 @@ def test_missing_binary_raises_for_each_vendor(monkeypatch):
         with pytest.raises(RuntimeError) as exc:
             fn("prompt")
         assert "not on PATH" in str(exc.value)
+
+
+import contextlib
+import io
+import urllib.request
+
+
+def _fake_urlopen_returning(payload_dict):
+    def fake_urlopen(req, timeout=None):
+        body = json.dumps(payload_dict).encode("utf-8")
+        fake = io.BytesIO(body)
+        return contextlib.closing(fake)
+    return fake_urlopen
+
+
+def test_openai_compat_needs_base_url(monkeypatch):
+    monkeypatch.delenv("OCTAGON_BASE_URL", raising=False)
+    with pytest.raises(RuntimeError) as exc:
+        client_mod.openai_compat_client("some-model")
+    assert "OCTAGON_BASE_URL" in str(exc.value)
+
+
+def test_openai_compat_needs_model(monkeypatch):
+    monkeypatch.setenv("OCTAGON_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.delenv("OCTAGON_MODEL", raising=False)
+    with pytest.raises(RuntimeError) as exc:
+        client_mod.openai_compat_client()
+    assert "OCTAGON_MODEL" in str(exc.value)
+
+
+def test_openai_compat_parses_choices(monkeypatch):
+    monkeypatch.setenv("OCTAGON_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen_returning(
+        {"choices": [{"message": {"content": "a reply"}}]}))
+    c = client_mod.openai_compat_client("local-model")
+    assert c("ping") == "a reply"
+
+
+def test_openai_compat_bad_shape_raises(monkeypatch):
+    monkeypatch.setenv("OCTAGON_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen_returning({"nope": 1}))
+    c = client_mod.openai_compat_client("local-model")
+    with pytest.raises(RuntimeError) as exc:
+        c("ping")
+    assert "unexpected shape" in str(exc.value)
+
+
+def test_openai_compat_auth_header_only_when_key_set(monkeypatch):
+    monkeypatch.setenv("OCTAGON_BASE_URL", "http://localhost:1234/v1")
+    captured = {}
+
+    def fake_urlopen(req, timeout=None):
+        captured["auth"] = req.headers.get("Authorization")
+        body = json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode("utf-8")
+        return contextlib.closing(io.BytesIO(body))
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.delenv("OCTAGON_API_KEY", raising=False)
+    client_mod.openai_compat_client("m")("ping")
+    assert captured["auth"] is None
+    monkeypatch.setenv("OCTAGON_API_KEY", "sk-test")
+    client_mod.openai_compat_client("m")("ping")
+    assert captured["auth"] == "Bearer sk-test"
