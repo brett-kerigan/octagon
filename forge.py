@@ -35,7 +35,10 @@ def _phi(x):
 
 
 def corr_test(xs, ys):
-    """Pearson r + two-sided p (normal approx). Returns (effect, p, n)."""
+    """Pearson r + two-sided p (normal approx; fine for n>~100, understates p for small
+    samples). Returns (effect, p, n)."""
+    if len(xs) != len(ys):
+        raise ValueError(f"xs and ys must be the same length; got {len(xs)} and {len(ys)}")
     n = len(xs)
     if n < 3:
         return 0.0, 1.0, n
@@ -100,7 +103,7 @@ def gate_one(score_fn, eras, recent_era, p_recent=P_RECENT):
     per = {}
     for era, slice_ in eras.items():
         eff, p, n = score_fn(slice_)
-        per[era] = {"effect": round(eff, 4), "p": round(p, 4), "n": n}
+        per[era] = {"effect": eff, "p": p, "n": n}
     nz = [per[e]["effect"] > 0 for e in per if abs(per[e]["effect"]) > 1e-9]
     consistent = len(set(nz)) <= 1
     rec = per[recent_era]
@@ -110,14 +113,16 @@ def gate_one(score_fn, eras, recent_era, p_recent=P_RECENT):
 
 
 def classify(consistent, recent_ok, older_strong, fdr_ok, vault_ok):
+    if not consistent:
+        return "MIRAGE"                      # never coherent across eras
     if not recent_ok and older_strong:
         return "DECAYED"                     # was real, died in the recent era
-    if not consistent or not recent_ok:
-        return "MIRAGE"                       # never coherent / not alive now
+    if not recent_ok:
+        return "MIRAGE"                      # not alive now
     if not fdr_ok:
-        return "MIRAGE"                       # didn't survive multiple-testing
+        return "MIRAGE"                      # didn't survive multiple-testing
     if vault_ok is False:
-        return "MIRAGE"                       # overfit; failed the sacred vault
+        return "MIRAGE"                      # overfit; failed the sacred vault
     return "REAL" if vault_ok else "INCONCLUSIVE"
 
 
@@ -141,7 +146,7 @@ def gate_batch(hypotheses, recent_era, alpha=FDR_ALPHA):
         if alive:
             v_eff, v_p, _ = r["score_fn"](r["vault"])
             r["vault_ok"] = (v_p < P_RECENT) and ((v_eff > 0) == (r["per"][recent_era]["effect"] > 0))
-            r["vault_effect"] = round(v_eff, 4)
+            r["vault_effect"] = v_eff
         else:
             r["vault_ok"] = None
             r["vault_effect"] = None
@@ -211,13 +216,15 @@ def demo():
         rr = r["per"][recent]
         sl = recent_slices[r["name"]]
         tc = tail_concentration([a for a, _ in sl], [b for _, b in sl])
-        print(f"{r['name']:<34} {rr['effect']:>8} {rr['p']:>8} "
-              f"{'Y' if r['fdr_ok'] else 'n':>4} {str(r['vault_effect']):>8} "
+        vault_str = (str(round(r['vault_effect'], 4)) if r['vault_effect'] is not None
+                     else str(None))
+        print(f"{r['name']:<34} {round(rr['effect'], 4):>8} {round(rr['p'], 4):>8} "
+              f"{'Y' if r['fdr_ok'] else 'n':>4} {vault_str:>8} "
               f"{tc['extreme_spread']:>11} {r['verdict']:>10}")
     fp = sum(1 for r in nulls if r["verdict"] == "REAL")
     print("-" * 90)
     print(f"20 pure-noise nulls -> {fp} survived as REAL (FDR <= {FDR_ALPHA:.0%}).")
-    print("TAIL row: monotonic but flat-middled. The linear/quintile measure dilutes the "
+    print("TAIL row: monotonic but flat-middled. The linear/decile measure dilutes the "
           "magnitude across the dead middle, while tail_spread captures the true "
           "extreme-decile edge: the exact shape a linear gate undersells.")
 
@@ -227,4 +234,7 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:  # noqa: BLE001
         pass
+    if "--demo" not in sys.argv[1:]:
+        print("usage: python forge.py --demo    (or: octagon gate --demo)", file=sys.stderr)
+        sys.exit(2)
     demo()

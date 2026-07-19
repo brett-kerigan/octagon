@@ -6,8 +6,10 @@ verdicts under FDR. That is the whole reason the gate exists.
 
 import random
 
-from forge import (benjamini_hochberg, corr_test, tail_concentration,
-                   gate_batch, _planted, _planted_tail, _score)
+import pytest
+
+from forge import (benjamini_hochberg, classify, corr_test, tail_concentration,
+                   gate_batch, gate_one, _planted, _planted_tail, _score)
 
 
 def test_corr_test_detects_strong_correlation():
@@ -72,8 +74,6 @@ def test_gate_batch_confirms_a_real_signal():
 
 
 def test_gate_one_rejects_unknown_recent_era():
-    import pytest
-    from forge import gate_one
     eras = {"2010-14": [(0.0, 0.0)] * 10}
     with pytest.raises(ValueError):
         gate_one(_score, eras, recent_era="2099")
@@ -87,3 +87,34 @@ def test_gate_batch_marks_decayed_signal():
     rows = gate_batch([{"name": "old", "score_fn": _score, "eras": e, "vault": v}], recent)
     assert rows[0]["verdict"] in ("DECAYED", "MIRAGE")
     assert rows[0]["verdict"] != "REAL"
+
+
+def test_gate_one_decides_on_raw_p_not_rounded_p():
+    # p=0.04996 rounds to 0.05 (fails "< 0.05"), but raw 0.04996 < 0.05 must pass.
+    # A gate that decides on rounded values would wrongly call this recent_ok=False.
+    def fake_score(slice_):
+        era = slice_["era"]
+        if era == "2020-24":
+            return 0.1, 0.04996, 400
+        return 0.1, 0.5, 400
+
+    eras = {"2010-14": {"era": "2010-14"}, "2020-24": {"era": "2020-24"}}
+    per, consistent, recent_ok, older_strong, recent_p = gate_one(fake_score, eras, "2020-24")
+    assert recent_ok is True
+    assert per["2020-24"]["p"] == 0.04996           # stored raw, not rounded to 0.05
+
+
+def test_classify_inconsistent_beats_decayed():
+    # A sign-flipping (never coherent) hypothesis must be MIRAGE even if it looks like it
+    # "died in the recent era after being strong" -- inconsistency is checked first.
+    assert classify(consistent=False, recent_ok=False, older_strong=True,
+                     fdr_ok=False, vault_ok=None) == "MIRAGE"
+
+
+def test_classify_decayed_still_holds():
+    assert classify(True, False, True, False, None) == "DECAYED"
+
+
+def test_corr_test_rejects_mismatched_lengths():
+    with pytest.raises(ValueError):
+        corr_test([1, 2, 3], [1, 2])
