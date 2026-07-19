@@ -10,8 +10,10 @@ shareable is *how the system behaved*, not the recipe it was pointed at.
 The harness was run against a real, hard, efficient-market problem: handicapping research in
 a parimutuel betting market (horse racing), where the "crowd" sets prices and an "edge" is an
 outcome whose true probability differs from its market price by more than the cost of
-trading. This is a good stress test precisely because the easy edges are already gone and the
-honest default answer is "there is nothing left here." The campaign was a research
+trading. This is a good stress test precisely because the easy edges are already gone, so the
+comfortable default answer — the one a single careful reasoner gives without looking
+hard — is "there is nothing left here." Searching past that default without fooling
+yourself is exactly the job this harness exists to do. The campaign was a research
 exercise run entirely against historical data; nothing in it describes, involves, or
 advises live wagering.
 
@@ -60,7 +62,8 @@ to look first in any adversarial market, and the roundtable surfaced it.
 - Roughly twenty hypotheses across several families were generated and taken to the gate.
 - **New, deployable edges found in this window: about zero.** For an efficient market, that is
   the expected and healthy outcome, not a failure. An honest null is the credibility asset
-  here.
+  here. It is a result about one campaign — one pilot, one window, one set of hypothesis
+  families — not a claim about the market's ceiling or the harness's.
 - Model-improving method upgrades: one, with a real (private) effect on how the downstream
   model scored existing signals.
 - Real defects and methodological holes caught by the discipline layer: three.
