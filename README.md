@@ -1,6 +1,6 @@
 # octagon
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/kerokerodayo/octagon)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/brett-kerigan/octagon)
 
 A persona-agnostic harness for **adversarial idea generation gated by an incorruptible
 reality test.** A pure turn-scheduler (the **octagon**) seats one to four **personas** that
@@ -95,7 +95,7 @@ python -m pytest -q       # the full offline test suite
 Or install the `octagon` command (`pip install -e .`), or run it with nothing installed:
 
 ```bash
-uvx --from git+https://github.com/kerokerodayo/octagon octagon gate --demo
+uvx --from git+https://github.com/brett-kerigan/octagon octagon gate --demo
 ```
 
 `octagon doctor` tells you which model backends this machine can run live.

@@ -67,7 +67,7 @@ Subcommands:
   skill to consume; `octagon prompt harvest` prints the harvest prompt the same way.
 
 No-install one-liner (documented in README):
-`uvx --from git+https://github.com/kerokerodayo/octagon octagon demo` — works without PyPI.
+`uvx --from git+https://github.com/brett-kerigan/octagon octagon demo` — works without PyPI.
 
 ## 3. Clients
 

@@ -1280,7 +1280,7 @@ python -m pytest -q       # the full offline test suite
 Or install the `octagon` command (`pip install -e .`), or run it with nothing installed:
 
 ```bash
-uvx --from git+https://github.com/kerokerodayo/octagon octagon gate --demo
+uvx --from git+https://github.com/brett-kerigan/octagon octagon gate --demo
 ```
 
 `octagon doctor` tells you which model backends this machine can run live.
@@ -1320,7 +1320,7 @@ different model family is the cheap antidote.
 4. Add the Codespaces badge under the title line:
 
 ```markdown
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/kerokerodayo/octagon)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/brett-kerigan/octagon)
 ```
 
 (The CI badge is still deferred until the first green Actions run — unchanged decision.)
