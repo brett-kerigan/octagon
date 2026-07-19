@@ -4,6 +4,8 @@ Offline (safe, deterministic stub personas):
     python demo.py
 Live (real model calls via the claude CLI, four seats x rounds):
     python demo.py --live
+Seat wiring (Task 4): pick a backend per role, dye one seat off-family, set rounds:
+    python demo.py --room=ollama --harvest=claude --dye=fool=codex --rounds=3
 
 Shows the two ways to field a table:
   - draft(...) for a general lineup of functional roles, and
@@ -20,7 +22,8 @@ from pathlib import Path
 
 from octagon import run_octagon
 from harvest import harvest
-from client import claude_cli_client, stub_client, ollama_client
+from client import (claude_cli_client, codex_cli_client, gemini_cli_client,
+                    ollama_client, openai_compat_client, stub_client)
 from personas import draft, dreamer, fool, behavioral_scientist, insider
 
 # The world the table is hunting in (domain), and the specific question (topic).
@@ -37,7 +40,7 @@ TOPIC = (
 )
 
 
-def example_room(client):
+def example_room(client, dye=None):
     """Pure-divergence room: GENERATORS ONLY, no filtering.
 
     The skeptic (the gate) and gambler (triage) are pulled DOWNSTREAM; the room's only job
@@ -46,11 +49,14 @@ def example_room(client):
 
     This lineup holds on a small local model. For a stronger run, swap `insider` for the
     domain-cast practitioner to add real domain grounding."""
+    dye = dye or {}
+    def c(name):
+        return dye.get(name, client)
     return [
-        dreamer(client, topic=TOPIC, domain=EXAMPLE_DOMAIN),
-        fool(client, topic=TOPIC, domain=EXAMPLE_DOMAIN),
-        behavioral_scientist(client, topic=TOPIC, domain=EXAMPLE_DOMAIN),
-        insider(client, topic=TOPIC, domain=EXAMPLE_DOMAIN,
+        dreamer(c("dreamer"), topic=TOPIC, domain=EXAMPLE_DOMAIN),
+        fool(c("fool"), topic=TOPIC, domain=EXAMPLE_DOMAIN),
+        behavioral_scientist(c("scientist"), topic=TOPIC, domain=EXAMPLE_DOMAIN),
+        insider(c("insider"), topic=TOPIC, domain=EXAMPLE_DOMAIN,
                 who="a thirty-year veteran trader who never opened a stats book but reads the "
                     "crowd, knows which questions draw dumb money, and remembers exactly why "
                     "old edges died"),
@@ -63,35 +69,81 @@ def general_room(client):
                  topic=TOPIC, domain=EXAMPLE_DOMAIN)
 
 
-def pick_clients(argv):
-    """Return (room_client, harvest_client). The principle the local runs taught us: cheap
-    models GENERATE well, strong models SYNTHESIZE, so the divergent room can run free while
-    the one harvest call gets the muscle.
-      (default)  stub   / stub    offline, instant
-      --local    ollama / ollama  fully local
-      --hybrid   ollama / claude  local divergent room + one stronger harvest (recommended)
-      --live     claude / claude  both on the claude CLI
+def _backend(name, model=None):
+    """Map a backend name to a client callable. Constructing a client never makes a
+    network call; only speaking does."""
+    if name == "stub":
+        return stub_client("(stub: a provocation would go here)")
+    if name == "ollama":
+        return ollama_client(model or "qwen2.5:7b")
+    if name == "claude":
+        return claude_cli_client
+    if name == "codex":
+        return codex_cli_client
+    if name == "gemini":
+        return gemini_cli_client
+    if name == "openai":
+        return openai_compat_client(model)
+    raise SystemExit(
+        f"unknown backend {name!r}; choose from stub|ollama|claude|codex|gemini|openai"
+    )
+
+
+def parse_args(argv):
+    """Seat wiring. The principle the local runs taught us: cheap models GENERATE well,
+    strong models SYNTHESIZE, so the divergent room can run cheap while the one harvest
+    call gets the muscle.
+
+      --room=<backend>       who powers the four seats        (default: stub)
+      --harvest=<backend>    who powers the one harvest call  (default: same as room)
+      --dye=<seat>=<backend> run ONE seat on a different model family
+                             (seats: dreamer|fool|scientist|insider) — the
+                             shared-basin antidote; repeatable
+      --rounds=N             rounds to run (default 2)
+      --model=<name>         model for ollama/openai backends
+
+    Legacy aliases: --live (claude/claude), --hybrid (ollama/claude),
+    --local (ollama/ollama).
     """
-    model = next((a.split("=", 1)[1] for a in argv if a.startswith("--model=")),
-                 "qwen2.5:7b")
-    if "--live" in argv:
-        return claude_cli_client, claude_cli_client
-    if "--hybrid" in argv:
-        return ollama_client(model), claude_cli_client
-    if "--local" in argv:
-        return ollama_client(model), ollama_client(model)
-    stub = stub_client("(stub: a provocation would go here)")
-    return stub, stub
+    def val(prefix, default=None):
+        return next((a.split("=", 1)[1] for a in argv if a.startswith(prefix)), default)
+
+    model = val("--model=")
+    rounds = int(val("--rounds=", "2"))
+    room_name = val("--room=")
+    harvest_name = val("--harvest=")
+    if room_name is None and harvest_name is None:
+        if "--live" in argv:
+            room_name = harvest_name = "claude"
+        elif "--hybrid" in argv:
+            room_name, harvest_name = "ollama", "claude"
+        elif "--local" in argv:
+            room_name = harvest_name = "ollama"
+    room_name = room_name or "stub"
+    harvest_name = harvest_name or room_name
+
+    dye = {}
+    for a in argv:
+        if a.startswith("--dye="):
+            seat, sep, backend = a.split("=", 1)[1].partition("=")
+            if not sep or seat not in ("dreamer", "fool", "scientist", "insider"):
+                raise SystemExit(
+                    f"--dye takes <seat>=<backend> with seat in "
+                    f"dreamer|fool|scientist|insider; got {a.split('=', 1)[1]!r}"
+                )
+            dye[seat] = _backend(backend, model)
+
+    return _backend(room_name, model), _backend(harvest_name, model), dye, rounds
 
 
-def main(room_client, harvest_client, rounds=2, out_path="last_run.md"):
+def main(room_client, harvest_client, rounds=2, out_path="last_run.md", dye=None):
     # Windows consoles default to cp1252 and choke on the non-ASCII text models emit.
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:  # noqa: BLE001
         pass
 
-    table = example_room(room_client)
+    table = example_room(room_client, dye=dye)
     result = run_octagon(table, max_rounds=rounds)
 
     lines = []
@@ -116,6 +168,11 @@ def main(room_client, harvest_client, rounds=2, out_path="last_run.md"):
     return result
 
 
+def cli_main(argv=None):
+    room_client, harvest_client, dye, rounds = parse_args(
+        sys.argv[1:] if argv is None else argv)
+    return main(room_client, harvest_client, rounds=rounds, dye=dye)
+
+
 if __name__ == "__main__":
-    room_client, harvest_client = pick_clients(sys.argv)
-    main(room_client, harvest_client, rounds=2)
+    cli_main()
