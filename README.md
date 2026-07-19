@@ -59,6 +59,17 @@ PROVOKE  ->  DIRECTION  ->  OPERATIONALIZE  ->  DECIDE  ->  [ REALITY is the jud
 The decider is not a seat. **Reality is.** The octagon's output is a testable hypothesis
 worth taking to the gate, never a verdict.
 
+## Where this sits
+
+This is not an agent-team framework. If you want autonomous agents that *do work for
+you* — crews, workflows, tool use — that is [CrewAI](https://github.com/crewAIInc/crewAI)
+or [AutoGen](https://github.com/microsoft/autogen), and they are good at it. If you want
+evidence that multi-agent *debate* improves accuracy on tasks with right answers, that is
+the [multiagent-debate line of work](https://arxiv.org/abs/2305.14325). Octagon is for a
+different job: adversarial hypothesis generation on problems *without* a right answer,
+where the thing that matters most is that **the generator never grades its own work** —
+belief is earned only through a statistical gate the model cannot talk its way past.
+
 ## One real example (functionality, demonstrated)
 
 The gate ships with a synthetic proof you can run yourself. It plants known signals (a real
@@ -151,9 +162,11 @@ different model family is the cheap antidote.
 
 The honest open question is worth collaborating on: **does function-diverse role-play
 generation, run on one strong model, produce more useful divergence than that model prompted
-once?** It needs a real eval, a task set without ground-truth answers, blind scoring of
-harvested hypotheses, single-model baseline versus the roundtable. If that interests you,
-open an issue.
+once?** Du et al. ([arXiv:2305.14325](https://arxiv.org/abs/2305.14325), ICML 2024) showed
+multiagent debate helps on tasks *with* right answers (math, factuality, MMLU); this
+project targets the open cousin of that question — tasks without one. It needs a real
+eval: a task set without ground-truth answers, blind scoring of harvested hypotheses,
+single-model baseline versus the roundtable. If that interests you, open an issue.
 
 ## License
 
